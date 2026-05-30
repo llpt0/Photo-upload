@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>📸 Photo Upload</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0a0a0f;
+      --surface: #13131a;
+      --surface2: #1c1c28;
+      --border: rgba(255,255,255,0.08);
+      --accent: #00e5a0;
+      --accent2: #7c6af7;
+      --accent-glow: rgba(0, 229, 160, 0.25);
+      --text: #f0f0f8;
+      --text-muted: rgba(240,240,248,0.45);
+      --danger: #ff4d6d;
+      --radius: 20px;
+      --radius-sm: 12px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Sarabun', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0 0 40px 0;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    /* Ambient glow background */
+    body::before {
+      content: '';
+      position: fixed;
+      top: -200px; left: 50%;
+      transform: translateX(-50%);
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(124,106,247,0.12) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    body::after {
+      content: '';
+      position: fixed;
+      bottom: -100px; right: -100px;
+      width: 400px; height: 400px;
+      background: radial-gradient(circle, rgba(0,229,160,0.08) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 480px;
+      padding: 0 20px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Header */
+    header {
+      width: 100%;
+      max-width: 480px;
+      padding: 28px 20px 0;
+      position: relative;
+      z-index: 1;
+    }
+    .header-tag {
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 3px;
+      color: var(--accent);
+      text-transform: uppercase;
+      margin-bottom: 6px;
+      opacity: 0.8;
+    }
+    header h1 {
+      font-size: 28px;
+      font-weight: 700;
+      line-height: 1.2;
+      background: linear-gradient(135deg, #fff 0%, var(--accent2) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    header p {
+      margin-top: 6px;
+      color: var(--text-muted);
+      font-size: 14px;
+      font-weight: 300;
+    }
+
+    /* Card */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-top: 24px;
+      position: relative;
+      overflow: hidden;
+    }
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent2), transparent);
+      opacity: 0.4;
+    }
+
+    /* Camera / Preview Area */
+    .camera-wrapper {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 4/3;
+      background: #05050a;
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    #videoEl {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    #previewEl {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      display: none;
+    }
+    .camera-placeholder {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      color: var(--text-muted);
+    }
+    .camera-placeholder .icon {
+      font-size: 52px;
+      filter: grayscale(0.3);
+    }
+    .camera-placeholder p {
+      font-size: 14px;
+      text-align: center;
+      max-width: 200px;
+      line-height: 1.5;
+    }
+
+    /* Corner brackets on camera */
+    .camera-wrapper::before,
+    .camera-wrapper::after {
+      content: '';
+      position: absolute;
+      width: 24px; height: 24px;
+      z-index: 2;
+      pointer-events: none;
+    }
+    .camera-wrapper::before {
+      top: 10px; left: 10px;
+      border-top: 2px solid var(--accent);
+      border-left: 2px solid var(--accent);
+      border-radius: 4px 0 0 0;
+    }
+    .camera-wrapper::after {
+      bottom: 10px; right: 10px;
+      border-bottom: 2px solid var(--accent);
+      border-right: 2px solid var(--accent);
+      border-radius: 0 0 4px 0;
+    }
+
+    /* Status badge */
+    .status-badge {
+      position: absolute;
+      top: 12px; right: 12px;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(8px);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 4px 10px;
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 1px;
+      color: var(--accent);
+      z-index: 3;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .status-dot {
+      width: 6px; height: 6px;
+      background: var(--accent);
+      border-radius: 50%;
+      animation: blink 1.5s ease-in-out infinite;
+    }
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.2; }
+    }
+
+    /* Buttons row */
+    .btn-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 14px 12px;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-family: 'Sarabun', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      position: relative;
+      overflow: hidden;
+    }
+    .btn:active { transform: scale(0.97); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #0a0a0f;
+      box-shadow: 0 0 20px var(--accent-glow);
+    }
+    .btn-primary:hover:not(:disabled) {
+      background: #00fbb0;
+      box-shadow: 0 0 30px rgba(0,229,160,0.4);
+    }
+
+    .btn-secondary {
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover:not(:disabled) {
+      border-color: var(--accent2);
+      color: var(--accent2);
+    }
+
+    .btn-danger-outline {
+      background: transparent;
+      color: var(--danger);
+      border: 1px solid rgba(255,77,109,0.4);
+      flex: 0 0 auto;
+      padding: 14px 16px;
+    }
+    .btn-danger-outline:hover:not(:disabled) {
+      background: rgba(255,77,109,0.1);
+    }
+
+    /* Section label */
+    .section-label {
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 2px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .section-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* Input */
+    .input-wrap {
+      position: relative;
+    }
+    .input-wrap .input-icon {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 18px;
+      pointer-events: none;
+    }
+    textarea {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-family: 'Sarabun', sans-serif;
+      font-size: 15px;
+      padding: 14px 14px 14px 44px;
+      resize: none;
+      min-height: 90px;
+      transition: border-color 0.2s;
+      line-height: 1.6;
+    }
+    textarea:focus {
+      outline: none;
+      border-color: var(--accent2);
+      box-shadow: 0 0 0 3px rgba(124,106,247,0.12);
+    }
+    textarea::placeholder { color: var(--text-muted); }
+
+    /* Upload button */
+    .btn-upload {
+      width: 100%;
+      padding: 18px;
+      border: none;
+      border-radius: var(--radius-sm);
+      background: linear-gradient(135deg, var(--accent2), #a78bfa);
+      color: white;
+      font-family: 'Sarabun', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 14px;
+      box-shadow: 0 4px 24px rgba(124,106,247,0.3);
+      letter-spacing: 0.3px;
+    }
+    .btn-upload:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 32px rgba(124,106,247,0.45);
+    }
+    .btn-upload:active:not(:disabled) { transform: translateY(0); }
+    .btn-upload:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+    /* Loading overlay */
+    .loading-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(10,10,15,0.85);
+      backdrop-filter: blur(12px);
+      z-index: 100;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+    }
+    .loading-overlay.active { display: flex; }
+
+    .spinner-ring {
+      width: 64px; height: 64px;
+      border-radius: 50%;
+      border: 3px solid rgba(0,229,160,0.1);
+      border-top-color: var(--accent);
+      animation: spin 0.9s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loading-text {
+      font-size: 16px;
+      color: var(--text-muted);
+      text-align: center;
+    }
+    .loading-text strong {
+      display: block;
+      color: var(--text);
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 32px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 50px;
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      z-index: 200;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+      transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
+      white-space: nowrap;
+      max-width: 90vw;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+    .toast.success { border-color: rgba(0,229,160,0.4); color: var(--accent); }
+    .toast.error { border-color: rgba(255,77,109,0.4); color: var(--danger); }
+
+    /* Config panel */
+    .config-note {
+      background: rgba(124,106,247,0.08);
+      border: 1px dashed rgba(124,106,247,0.3);
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+      margin-top: 14px;
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.7;
+    }
+    .config-note code {
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      background: rgba(124,106,247,0.15);
+      color: var(--accent2);
+      padding: 2px 7px;
+      border-radius: 5px;
+    }
+
+    /* File input for mobile fallback */
+    #fileInput { display: none; }
+
+    /* Preview delete btn */
+    .preview-actions {
+      display: none;
+      gap: 10px;
+      margin-top: 14px;
+    }
+    .preview-actions.visible { display: flex; }
+
+    /* Shimmer on upload btn */
+    .btn-upload::after {
+      content: '';
+      position: absolute;
+      top: 0; left: -100%;
+      width: 60%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent);
+      animation: shimmer 3s ease infinite;
+    }
+    @keyframes shimmer {
+      0% { left: -100%; }
+      50%, 100% { left: 150%; }
+    }
+    .btn-upload { position: relative; overflow: hidden; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="header-tag">📍 Field Reporter</div>
+    <h1>ถ่ายภาพ &<br>บันทึกสถานที่</h1>
+    <p>อัปโหลดรูปพร้อมข้อมูลสถานที่ไปยัง Google Drive</p>
+  </header>
+
+  <div class="container">
+
+    <!-- ─── Camera Card ─── -->
+    <div class="card">
+      <div class="section-label">กล้องถ่ายรูป</div>
+      <div class="camera-wrapper" id="cameraWrapper">
+        <video id="videoEl" autoplay playsinline muted></video>
+        <img id="previewEl" alt="preview" />
+        <div class="camera-placeholder" id="placeholder">
+          <div class="icon">📷</div>
+          <p>กดปุ่มด้านล่างเพื่อเปิดกล้องหรือเลือกรูปภาพ</p>
+        </div>
+        <div class="status-badge" id="statusBadge" style="display:none;">
+          <span class="status-dot"></span> LIVE
+        </div>
+      </div>
+
+      <!-- Camera controls -->
+      <div class="btn-row" id="cameraControls">
+        <button class="btn btn-primary" id="btnOpenCam">📷 เปิดกล้อง</button>
+        <button class="btn btn-secondary" id="btnChooseFile">🖼️ เลือกรูป</button>
+      </div>
+
+      <!-- Shoot + retake -->
+      <div class="btn-row" id="shootControls" style="display:none;">
+        <button class="btn btn-primary" id="btnShoot">⚡ ถ่ายรูป</button>
+        <button class="btn btn-danger-outline" id="btnStopCam">✕</button>
+      </div>
+
+      <!-- Preview actions -->
+      <div class="preview-actions" id="previewActions">
+        <button class="btn btn-secondary" id="btnRetake" style="flex:1">🔄 ถ่ายใหม่</button>
+      </div>
+    </div>
+
+    <!-- ─── Location Card ─── -->
+    <div class="card">
+      <div class="section-label">สถานที่ / รายละเอียด</div>
+      <div class="input-wrap">
+        <span class="input-icon">📍</span>
+        <textarea id="locationText" placeholder="ระบุสถานที่หรือรายละเอียดเพิ่มเติม เช่น อาคาร A ชั้น 3 ห้องประชุม..." rows="3"></textarea>
+      </div>
+    </div>
+
+    <!-- ─── Upload Button ─── -->
+    <button class="btn-upload" id="btnUpload" disabled>
+      ☁️ อัปโหลดไปยัง Google Drive
+    </button>
+
+    <!-- Config note -->
+    <div class="config-note">
+      ⚙️ ก่อนใช้งาน: ให้แก้ไข <code>APPS_SCRIPT_URL</code> ในไฟล์นี้ให้เป็น URL ของ Google Apps Script Web App ของคุณ
+    </div>
+
+  </div>
+
+  <!-- Loading overlay -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="spinner-ring"></div>
+    <div class="loading-text">
+      <strong>กำลังอัปโหลด...</strong>
+      กรุณารอสักครู่
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <!-- Hidden file input -->
+  <input type="file" id="fileInput" accept="image/*" capture="environment" />
+  <!-- Hidden canvas for capture -->
+  <canvas id="canvas" style="display:none;"></canvas>
+
+  <script>
+    // ══════════════════════════════════════════════
+    // 🔧 CONFIG — แก้ไข URL ตรงนี้หลัง Deploy Apps Script
+    // ══════════════════════════════════════════════
+    const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwR8MR6eQ7uRgpe8T8xJtGNokegFuBVcngWakqFxQaKt2rcPq1ATq7ZOSM6VJ5HLhbQeg/exec';
+
+    // ── State ──
+    let stream = null;
+    let capturedBlob = null;
+    let capturedDataUrl = null;
+
+    // ── Elements ──
+    const videoEl        = document.getElementById('videoEl');
+    const previewEl      = document.getElementById('previewEl');
+    const placeholder    = document.getElementById('placeholder');
+    const statusBadge    = document.getElementById('statusBadge');
+    const cameraControls = document.getElementById('cameraControls');
+    const shootControls  = document.getElementById('shootControls');
+    const previewActions = document.getElementById('previewActions');
+    const btnOpenCam     = document.getElementById('btnOpenCam');
+    const btnChooseFile  = document.getElementById('btnChooseFile');
+    const btnShoot       = document.getElementById('btnShoot');
+    const btnStopCam     = document.getElementById('btnStopCam');
+    const btnRetake      = document.getElementById('btnRetake');
+    const btnUpload      = document.getElementById('btnUpload');
+    const fileInput      = document.getElementById('fileInput');
+    const canvas         = document.getElementById('canvas');
+    const locationText   = document.getElementById('locationText');
+    const loadingOverlay = document.getElementById('loadingOverlay');
+
+    // ── Open Camera ──
+    btnOpenCam.addEventListener('click', async () => {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+          audio: false
+        });
+        videoEl.srcObject = stream;
+        videoEl.style.display = 'block';
+        placeholder.style.display = 'none';
+        statusBadge.style.display = 'flex';
+        cameraControls.style.display = 'none';
+        shootControls.style.display = 'flex';
+        previewActions.classList.remove('visible');
+        previewEl.style.display = 'none';
+        capturedBlob = null;
+        capturedDataUrl = null;
+        updateUploadBtn();
+      } catch (e) {
+        showToast('❌ ไม่สามารถเข้าถึงกล้องได้ กรุณาอนุญาต Permission', 'error');
+      }
+    });
+
+    // ── Stop Camera ──
+    function stopCamera() {
+      if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+      videoEl.srcObject = null;
+      videoEl.style.display = 'none';
+      statusBadge.style.display = 'none';
+    }
+
+    btnStopCam.addEventListener('click', () => {
+      stopCamera();
+      if (!capturedDataUrl) {
+        placeholder.style.display = 'flex';
+        cameraControls.style.display = 'flex';
+        shootControls.style.display = 'none';
+      } else {
+        shootControls.style.display = 'none';
+        cameraControls.style.display = 'flex';
+      }
+    });
+
+    // ── Take Photo ──
+    btnShoot.addEventListener('click', () => {
+      if (!stream) return;
+      const vw = videoEl.videoWidth  || 1280;
+      const vh = videoEl.videoHeight || 720;
+      canvas.width  = vw;
+      canvas.height = vh;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(videoEl, 0, 0, vw, vh);
+      canvas.toBlob(blob => {
+        capturedBlob    = blob;
+        capturedDataUrl = canvas.toDataURL('image/jpeg', 0.88);
+        previewEl.src   = capturedDataUrl;
+        previewEl.style.display = 'block';
+        placeholder.style.display = 'none';
+        stopCamera();
+        shootControls.style.display = 'none';
+        cameraControls.style.display = 'flex';
+        previewActions.classList.add('visible');
+        updateUploadBtn();
+        // Flash effect
+        flashEffect();
+      }, 'image/jpeg', 0.88);
+    });
+
+    // ── Choose File ──
+    btnChooseFile.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      capturedBlob = file;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        capturedDataUrl = ev.target.result;
+        previewEl.src   = capturedDataUrl;
+        previewEl.style.display = 'block';
+        placeholder.style.display = 'none';
+        cameraControls.style.display = 'flex';
+        shootControls.style.display  = 'none';
+        previewActions.classList.add('visible');
+        updateUploadBtn();
+      };
+      reader.readAsDataURL(file);
+      fileInput.value = '';
+    });
+
+    // ── Retake ──
+    btnRetake.addEventListener('click', () => {
+      capturedBlob = null;
+      capturedDataUrl = null;
+      previewEl.style.display = 'none';
+      previewEl.src = '';
+      placeholder.style.display = 'flex';
+      previewActions.classList.remove('visible');
+      updateUploadBtn();
+    });
+
+    // ── Upload ──
+    btnUpload.addEventListener('click', async () => {
+      if (!capturedBlob) return showToast('⚠️ กรุณาถ่ายรูปหรือเลือกรูปก่อน', 'error');
+      if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL === 'YOUR_APPS_SCRIPT_WEB_APP_URL_HERE') {
+        return showToast('⚠️ กรุณาตั้งค่า APPS_SCRIPT_URL ก่อนใช้งาน', 'error');
+      }
+
+      loadingOverlay.classList.add('active');
+      btnUpload.disabled = true;
+
+      try {
+        // Convert to base64
+        const base64 = await blobToBase64(capturedBlob);
+        const location = locationText.value.trim() || 'ไม่ระบุสถานที่';
+
+        const payload = {
+          imageData: base64.split(',')[1], // strip data:image/...;base64,
+          mimeType:  capturedBlob.type || 'image/jpeg',
+          location:  location,
+          timestamp: new Date().toISOString()
+        };
+
+        const res = await fetch(APPS_SCRIPT_URL, {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+          showToast('✅ อัปโหลดสำเร็จ! บันทึกใน Drive แล้ว', 'success');
+          // Reset
+          capturedBlob = null; capturedDataUrl = null;
+          previewEl.style.display = 'none';
+          previewEl.src = '';
+          placeholder.style.display = 'flex';
+          previewActions.classList.remove('visible');
+          locationText.value = '';
+          updateUploadBtn();
+        } else {
+          throw new Error(data.error || 'Upload failed');
+        }
+      } catch (err) {
+        console.error(err);
+        showToast('❌ อัปโหลดล้มเหลว: ' + err.message, 'error');
+      } finally {
+        loadingOverlay.classList.remove('active');
+        updateUploadBtn();
+      }
+    });
+
+    // ── Helpers ──
+    function updateUploadBtn() {
+      btnUpload.disabled = !capturedBlob;
+    }
+
+    function blobToBase64(blob) {
+      return new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload  = () => resolve(r.result);
+        r.onerror = reject;
+        r.readAsDataURL(blob);
+      });
+    }
+
+    function flashEffect() {
+      const flash = document.createElement('div');
+      Object.assign(flash.style, {
+        position:'fixed', inset:0, background:'white',
+        opacity:'0.6', zIndex:'999', pointerEvents:'none',
+        transition:'opacity 0.3s ease'
+      });
+      document.body.appendChild(flash);
+      requestAnimationFrame(() => { flash.style.opacity = '0'; });
+      setTimeout(() => flash.remove(), 400);
+    }
+
+    let toastTimer;
+    function showToast(msg, type = 'success') {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.className = `toast ${type} show`;
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => el.classList.remove('show'), 3500);
+    }
+  </script>
+</body>
+</html>
